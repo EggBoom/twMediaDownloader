@@ -3432,6 +3432,9 @@ var download_media_timeline = ( function () {
                                 csv_media_type,
                                 media_prefix,
                                 media_extension;
+
+                            let { text: tweet_text } = target_tweet_info
+                            tweet_text = tweet_text.replace(/\\n|\s|https.*/g, '');
                             
                             switch ( media.media_type ) {
                                 case MEDIA_TYPE.image :
@@ -3458,7 +3461,7 @@ var download_media_timeline = ( function () {
                             }
                             
                             let timestamp = datetime_to_timestamp( target_tweet_info.datetime ),
-                                media_filename = [ target_tweet_info.screen_name, target_tweet_info.id, timestamp, media_prefix + report_index ].join( '-' ) + '.' + media_extension,
+                                media_filename = `${ tweet_text + report_index }.${ media_extension }`,
                                 download_error;
                             
                             if ( ! dry_run ) {
@@ -3951,6 +3954,7 @@ function parse_tweet( $tweet ) {
     var $tweet_time = $tweet.find( 'a[role="link"] time[datetime]' ).filter( function () {
             return $( this ).parents( 'div[role="link"]' ).length < 1;
         } ).first(),
+        $tweet_text = $tweet.find('[data-testid="tweetText"]'),
         is_individual_tweet = ( $tweet_time.length <= 0 ),
         $caret_menu_button = $tweet.find( '[role="button"][data-testid="caret"]' ).first(),
         $source_label_container = ( is_individual_tweet ) ? $tweet.find( 'div[dir="auto"]' ).filter( function () {
@@ -4053,6 +4057,7 @@ function parse_tweet( $tweet ) {
     
     return {
         $tweet,
+        $tweet_text,
         is_min_render_complete,
         is_individual_tweet,
         tweet_url,
@@ -4292,34 +4297,33 @@ function setup_image_download_button( $tweet, $media_button ) {
                     log_error( 'download failure', image_url, fetch_result.error, fetch_result.response );
                     continue;
                 }
+
+                let [ tweet_text ] = tweet_info.$tweet_text
+                tweet_text = tweet_text.innerText.replace(/\n|\s/g, '')
+                var image_filename = `${ tweet_text }${ image_index + 1 }.${ get_img_extension( image_url ) }`
                 
-                var image_filename = [
-                        tweet_info.screen_name,
-                        tweet_info.tweet_id,
-                        timestamp,
-                        'img' + ( image_index + 1 ),
-                    ].join( '-' ) + '.' + get_img_extension( image_url );
+                // zip.file( image_filename, fetch_result.response, {
+                //     date: zipdate,
+                // } );
                 
-                zip.file( image_filename, fetch_result.response, {
-                    date: zipdate,
-                } );
-                
+                download_blob( image_filename, new Blob([fetch_result.response]) );
                 image_index ++;
             }
+
             
-            var zip_filename = [
-                    tweet_info.screen_name,
-                    tweet_info.tweet_id,
-                    timestamp,
-                    'img',
-                ].join( '-' ) + '.zip',
+            // var zip_filename = [
+            //         tweet_info.screen_name,
+            //         tweet_info.tweet_id,
+            //         timestamp,
+            //         'img',
+            //     ].join( '-' ) + '.zip',
                 
-                download_result = await async_download_zip( zip, zip_filename );
+            //     download_result = await async_download_zip( zip, zip_filename );
             
-            if ( download_result.error ) {
-                log_error( 'Error in zip.generateAsync()', download_result.error );
-                alert( 'ZIP download failed !' );
-            }
+            // if ( download_result.error ) {
+            //     log_error( 'Error in zip.generateAsync()', download_result.error );
+            //     alert( 'ZIP download failed !' );
+            // }
             enable_button();
         },
         
@@ -4542,16 +4546,20 @@ function setup_video_download_button( $tweet, $media_button ) {
                 return;
             }
             
-            var timestamp_ms = created_at ? new Date( created_at ).getTime() : tweet_info.timestamp_ms,
-                date = new Date( parseInt( timestamp_ms, 10 ) ),
-                timestamp = format_date( date, 'YYYYMMDD_hhmmss' ),
-                filename = [
-                    tweet_info.screen_name,
-                    tweet_info.tweet_id,
-                    timestamp,
-                    media_prefix + '1'
-                ].join( '-' ) + '.' + get_video_extension( video_url );
-            
+            // var timestamp_ms = created_at ? new Date( created_at ).getTime() : tweet_info.timestamp_ms,
+            //     date = new Date( parseInt( timestamp_ms, 10 ) ),
+            //     timestamp = format_date( date, 'YYYYMMDD_hhmmss' ),
+            //     filename = [
+            //         tweet_info.screen_name,
+            //         tweet_info.tweet_id,
+            //         timestamp,
+            //         media_prefix + '1'
+            //     ].join( '-' ) + '.' + get_video_extension( video_url );
+
+            let [ tweet_text ] = tweet_info.$tweet_text
+            tweet_text = tweet_text.innerText.replace(/\n|\s/g, '')
+            var filename = `${ tweet_text }.${ get_video_extension( video_url ) }`
+
             download_blob( filename, fetch_result.response );
             enable_button();
         },
